@@ -20,6 +20,7 @@ private:
         size_t startAddress; // start address of the current block of RAM mapped to this line
     };
 
+    int hitCount=0, missCount=0;
     int time=0;
     quint32* data;
     size_t dataSize;
@@ -43,6 +44,7 @@ private:
     }
     void readLine(Line& line, size_t address, size_t readSize)
     {
+        ++missCount;
         const auto startAddress=address/lineSize*lineSize;
         line.used=true;
         line.useTime=++time;
@@ -89,6 +91,7 @@ public:
             auto& line=lines[set+way*setCount];
             if(line.used && line.startAddress==address/lineSize*lineSize)
             {
+                ++hitCount;
                 std::fill(data+address,data+address+readSize,quint32(hit));
                 return;
             }
@@ -107,6 +110,9 @@ public:
     {
         // FIXME: do we need to do anything here?
     }
+
+    int getHitCount() const { return hitCount; }
+    int getMissCount() const { return missCount; }
 };
 
 int usage(const char* argv0, int ret)
@@ -120,6 +126,7 @@ int usage(const char* argv0, int ret)
                  " --sets N                 number of sets in the simulated cache\n"
                  " --ways N                 associativity of the simulated cache\n"
                  " --line N                 line size of the simulated cache\n"
+                 " --stat-only              only calculate hit/miss statistics\n"
                  ;
     std::cerr << "\n";
     return ret;
@@ -138,6 +145,7 @@ int main(int argc, char** argv)
     size_t lineSize=64;
     size_t setCount=32;
     size_t wayCount=4;
+    bool printStatsAndQuit=false;
     QString fileNameTemplate="/tmp/mat%1-%2.png";
     try
     {
@@ -179,6 +187,10 @@ int main(int argc, char** argv)
                 if(i+1==argc) return needsParams(arg,1);
                 wayCount=std::stoul(argv[++i]);
             }
+            else if(arg=="--stats-only")
+            {
+                printStatsAndQuit=true;
+            }
             else if(arg=="--help")
             {
                 return usage(argv[0], 0);
@@ -203,8 +215,9 @@ int main(int argc, char** argv)
     Cache cache(data.data(), matrixSide*matrixSide*matrixElementSize, lineSize, setCount, wayCount);
 
     int frame=100000;
-    auto saveFrame=[matrixSide,imageScale,&fileNameTemplate,&frame,&result,&colorTable]
+    auto saveFrame=[printStatsAndQuit,matrixSide,imageScale,&fileNameTemplate,&frame,&result,&colorTable]
     {
+        if(printStatsAndQuit) return;
         result.scaled(matrixSide*imageScale, matrixSide*imageScale).convertToFormat(QImage::Format_Indexed8,colorTable).save(QString(fileNameTemplate).arg(matrixSide).arg(frame++));
         std::cerr << "\rSaved frame " << frame;
     };
@@ -221,5 +234,13 @@ int main(int argc, char** argv)
             cache.memWrite((j*matrixSide+i)*matrixElementSize, 4);*/
         }
     }
-    std::cerr << "\n";
+    if(!printStatsAndQuit)
+        std::cerr << "\n";
+    else
+    {
+        const auto hits=cache.getHitCount();
+        const auto misses=cache.getMissCount();
+        std::cout << "Hits  : " << hits << "\n"
+                     "Misses: " << misses << " (" << 100.*misses/(misses+hits) << "% of all reads)\n";
+    }
 }
