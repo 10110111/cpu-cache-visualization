@@ -7,10 +7,6 @@ class Cache
 {
 public:
     using size_t=std::size_t;
-    static constexpr size_t lineSize=64;
-    static constexpr size_t setCount=32;
-    static constexpr size_t wayCount=4;
-
     static constexpr quint32 absent=0xfffafafa;
     static constexpr quint32 present=0xffbbffbb;
     static constexpr quint32 justRead=0xffff7700;
@@ -28,6 +24,9 @@ private:
     quint32* data;
     size_t dataSize;
     std::vector<Line> lines;
+    size_t lineSize;
+    size_t setCount;
+    size_t wayCount;
 
     void initStateBeforeRead()
     {
@@ -70,10 +69,13 @@ private:
         return *lineToEvict;
     }
 public:
-    Cache(quint32* data, size_t dataSize)
+    Cache(quint32* data, size_t dataSize, size_t lineSize, size_t setCount, size_t wayCount)
         : data(data)
         , dataSize(dataSize)
         , lines(setCount*wayCount)
+        , lineSize(lineSize)
+        , setCount(setCount)
+        , wayCount(wayCount)
     {
         std::fill(data,data+dataSize,quint32(absent));
     }
@@ -109,8 +111,17 @@ public:
 
 int usage(const char* argv0, int ret)
 {
-    std::cerr << "Usage: " << argv0 << " [--size matrixSideSize] [--scale imageScale] [--files NAME_TEMPLATE]\n";
-    std::cerr << "File name template must have \"%1\" placeholder for matrix side size and \"%2\" for frame index\n";
+    std::cerr << "Usage: " << argv0 << " [options]...\n";
+    std::cerr << "Options:\n"
+                 " --msize matrixSideSize   size of square matrix side (default 64)\n"
+                 " --scale imageScale       scale image by a factor (default 4)\n"
+                 " --files NAME_TEMPLATE    file name template. Must have \"%1\" placeholder for\n"
+                 "                          matrix side size and \"%2\" for frame index]\n"
+                 " --sets N                 number of sets in the simulated cache\n"
+                 " --ways N                 associativity of the simulated cache\n"
+                 " --line N                 line size of the simulated cache\n"
+                 ;
+    std::cerr << "\n";
     return ret;
 }
 
@@ -124,13 +135,16 @@ int main(int argc, char** argv)
 {
     unsigned long matrixSide=64;
     unsigned long imageScale=4;
+    size_t lineSize=64;
+    size_t setCount=32;
+    size_t wayCount=4;
     QString fileNameTemplate="/tmp/mat%1-%2.png";
     try
     {
         for(int i=1;i<argc;++i)
         {
             const std::string arg(argv[i]);
-            if(arg=="--size")
+            if(arg=="--msize")
             {
                 if(i+1==argc) return needsParams(arg,1);
                 matrixSide=std::stoul(argv[++i]);
@@ -149,6 +163,21 @@ int main(int argc, char** argv)
                     std::cerr << "Filename template must contain \"%1\" and \"%2\" placeholders\n";
                     return 1;
                 }
+            }
+            else if(arg=="--line")
+            {
+                if(i+1==argc) return needsParams(arg,1);
+                lineSize=std::stoul(argv[++i]);
+            }
+            else if(arg=="--sets")
+            {
+                if(i+1==argc) return needsParams(arg,1);
+                setCount=std::stoul(argv[++i]);
+            }
+            else if(arg=="--ways")
+            {
+                if(i+1==argc) return needsParams(arg,1);
+                wayCount=std::stoul(argv[++i]);
             }
             else if(arg=="--help")
             {
@@ -171,7 +200,7 @@ int main(int argc, char** argv)
     QImage result(reinterpret_cast<uchar*>(data.data()), matrixSide*matrixElementSize, matrixSide, QImage::Format_RGB32);
     const QVector<QRgb> colorTable={Cache::absent,Cache::present,Cache::justRead,Cache::hit,Cache::miss};
 
-    Cache cache(data.data(), matrixSide*matrixSide*matrixElementSize);
+    Cache cache(data.data(), matrixSide*matrixSide*matrixElementSize, lineSize, setCount, wayCount);
 
     int frame=100000;
     auto saveFrame=[matrixSide,imageScale,&fileNameTemplate,&frame,&result,&colorTable]
