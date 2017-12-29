@@ -109,19 +109,56 @@ public:
 
 int usage(const char* argv0, int ret)
 {
-    std::cerr << "Usage: " << argv0 << " matrixSideSize\n";
+    std::cerr << "Usage: " << argv0 << " [--size matrixSideSize] [--scale imageScale] [--files NAME_TEMPLATE]\n";
+    std::cerr << "File name template must have \"%1\" placeholder for matrix side size and \"%2\" for frame index\n";
+    return ret;
+}
+
+int needsParams(std::string const& arg, int ret)
+{
+    std::cerr << "Option " << arg << " requires parameter\n";
     return ret;
 }
 
 int main(int argc, char** argv)
 {
     unsigned long matrixSide=64;
-    if(argc>2) return usage(argv[0],1);
+    unsigned long imageScale=4;
+    QString fileNameTemplate="/tmp/mat%1-%2.png";
     try
     {
-        if(argc==2)
+        for(int i=1;i<argc;++i)
         {
-            matrixSide=std::stoul(argv[1]);
+            const std::string arg(argv[i]);
+            if(arg=="--size")
+            {
+                if(i+1==argc) return needsParams(arg,1);
+                matrixSide=std::stoul(argv[++i]);
+            }
+            else if(arg=="--scale")
+            {
+                if(i+1==argc) return needsParams(arg,1);
+                imageScale=std::stoul(argv[++i]);
+            }
+            else if(arg=="--files")
+            {
+                if(i+1==argc) return needsParams(arg,1);
+                fileNameTemplate=argv[++i];
+                if(!fileNameTemplate.contains("%1") || !fileNameTemplate.contains("%2"))
+                {
+                    std::cerr << "Filename template must contain \"%1\" and \"%2\" placeholders\n";
+                    return 1;
+                }
+            }
+            else if(arg=="--help")
+            {
+                return usage(argv[0], 0);
+            }
+            else
+            {
+                std::cerr << "Unknown option " << arg << "\n";
+                return 1;
+            }
         }
     }
     catch(std::runtime_error& ex)
@@ -137,9 +174,9 @@ int main(int argc, char** argv)
     Cache cache(data.data(), matrixSide*matrixSide*matrixElementSize);
 
     int frame=100000;
-    auto saveFrame=[matrixSide,&frame,&result,&colorTable]
+    auto saveFrame=[matrixSide,imageScale,&fileNameTemplate,&frame,&result,&colorTable]
     {
-        result.scaled(matrixSide*4, matrixSide*4).convertToFormat(QImage::Format_Indexed8,colorTable).save(QString("/tmp/mat%1-%2.png").arg(matrixSide).arg(frame++));
+        result.scaled(matrixSide*imageScale, matrixSide*imageScale).convertToFormat(QImage::Format_Indexed8,colorTable).save(QString(fileNameTemplate).arg(matrixSide).arg(frame++));
         std::cerr << "\rSaved frame " << frame;
     };
     saveFrame();
