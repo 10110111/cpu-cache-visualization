@@ -202,7 +202,7 @@ int main(int argc, char** argv)
             }
         }
     }
-    catch(std::runtime_error& ex)
+    catch(std::exception& ex)
     {
         return usage(argv[0], 2);
     }
