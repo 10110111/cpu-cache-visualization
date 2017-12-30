@@ -214,11 +214,11 @@ int main(int argc, char** argv)
 
     Cache cache(data.data(), matrixSide*matrixSide*matrixElementSize, lineSize, setCount, wayCount);
 
-    int frame=100000;
+    int frame=0;
     auto saveFrame=[printStatsAndQuit,matrixSide,imageScale,&fileNameTemplate,&frame,&result,&colorTable]
     {
         if(printStatsAndQuit) return;
-        result.scaled(matrixSide*imageScale, matrixSide*imageScale).convertToFormat(QImage::Format_Indexed8,colorTable).save(QString(fileNameTemplate).arg(matrixSide).arg(frame++));
+        result.scaled(matrixSide*imageScale, matrixSide*imageScale).convertToFormat(QImage::Format_Indexed8,colorTable).save(QString(fileNameTemplate).arg(matrixSide).arg(frame++,6,10,QChar('0')));
         std::cerr << "\rSaved frame " << frame;
     };
     saveFrame();
