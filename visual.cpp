@@ -122,11 +122,11 @@ int usage(const char* argv0, int ret)
                  " --msize matrixSideSize   size of square matrix side (default 64)\n"
                  " --scale imageScale       scale image by a factor (default 4)\n"
                  " --files NAME_TEMPLATE    file name template. Must have \"%1\" placeholder for\n"
-                 "                          matrix side size and \"%2\" for frame index]\n"
+                 "                          matrix side size and \"%2\" for frame index\n"
                  " --sets N                 number of sets in the simulated cache\n"
                  " --ways N                 associativity of the simulated cache\n"
                  " --line N                 line size of the simulated cache\n"
-                 " --stat-only              only calculate hit/miss statistics\n"
+                 " --stats-only             only calculate hit/miss statistics\n"
                  ;
     std::cerr << "\n";
     return ret;
